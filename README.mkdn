@@ -1,0 +1,25 @@
+##XBox Games Module##
+To track the interest in new games for Xbox 360.
+Only users that are logged in with the proper permissions can view and vote for games or
+mark them as owned.
+
+###Dependencies###
+[Web service client] (http://drupal.org/project/wsclient)
+wsclient, wsclient_soap, nerdery_soap
+
+###Web service client setup###
+1. enable wsclient, wsclient_soap and wsclient_ui
+
+###Using Xboxgames module###
+1. Go to /admin/config/content/xboxgames
+2. Enter API key
+
+Admin page at /admin/config/content/xboxgames to set API key and clear games.
+
+Only Drupal users can vote or add games when given permission.
+Give permission to roles to save a game as owned.
+
+Block (Games We Own) - This block is created to display a list of the games already owned.
+
+Page (site.com/xbox/games) - Page that lists the games to be voted for.
+Page (site.com/xbox/games/add) - Page with a form to add new game titles to be voted for.

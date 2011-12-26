@@ -1,0 +1,10 @@
+name = Xbox games
+description = Vote on Xbox 360 games.
+core = 7.x
+package = Nerdery
+files[] = xboxgames.class.inc
+dependencies[] = wsclient
+dependencies[] = wsclient_soap
+dependencies[] = wsclient_ui
+dependencies[] = nerdery_soap
+configure = admin/config/content/xboxgames

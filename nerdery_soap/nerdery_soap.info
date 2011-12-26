@@ -1,0 +1,5 @@
+name = Xboxgames web service
+description = SOAP service for The Nerdery
+package = Nerdery
+core = 7.x
+dependencies[] = wsclient_soap

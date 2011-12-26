@@ -1,0 +1,25 @@
+<?php
+/**
+ *@file
+ * Create a default web service client description for the nerdery
+ */
+
+/**
+ * Implements hook_default_wsclient_service().
+ */
+function nerdery_soap_default_wsclient_service() {
+  $service = new WSClientServiceDescription();
+  $service->name = 'xbox_voting';
+  $service->label = 'xbox_voting';
+  $service->url = 'http://xbox.sierrabravo.net/v2/xbox.wsdl';
+  $service->type = 'soap';
+  try {
+    $service->endpoint()->initializeMetaData();
+    $services[$service->name] = $service;
+  }
+  catch (WSClientException $e) {
+    watchdog('wsclient', $e->__toString());
+  }
+
+  return $services;
+}

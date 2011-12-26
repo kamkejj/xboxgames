@@ -1,0 +1,337 @@
+<?php
+/**
+ *@file
+ * A module to view and vote  for Xbox games to be purchased.
+ *
+ * @author Jon Kamke
+ */
+
+/**
+ *
+ * Implements hook_help
+ *
+ * Displays help and module information.
+ *
+* @param path
+*   Which path of the site we're using to display help
+* @param arg
+*   Array that holds the current path as returned from arg() function
+ *
+ */
+function xboxgames_help($path, $arg) {
+  switch ($path) {
+    case "admin/help#xboxgames":
+      return '<p>'.  t("Allows voting for Xbox games.") .'</p>';
+      break;
+  }
+}
+
+/**
+ *
+ *  Implements hook_permission
+ */
+function xboxgames_permission() {
+  return array(
+    'access xboxgames content' => array(
+      'title' => t('Access Xbox Games content.'),
+    ),
+    'mark xboxgames purchased' => array(
+      'title' => t('Mark game as purchased.'),
+    ),
+  );
+}
+
+/**
+ * Implements hook_menu
+ *
+ * @return items array()
+ */
+function xboxgames_menu() {
+  $items = array();
+
+  $items['admin/config/content/xboxgames'] = array(
+    'title' => 'Xbox Games Admin',
+    'description' => 'Configuration for xboxgames module',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('xboxgames_form'),
+    'access arguments' => array('access administration pages'),
+    'type' => MENU_NORMAL_ITEM,
+    'file' => 'xboxgames.admin.inc',
+  );
+
+  $items['xbox/games/add'] = array(
+    'title' => 'Add New Game',
+    'description' => 'A user can add a new game to the list',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('xboxgames_newgame_form'),
+    'access arguments' => array('access xboxgames content'),
+    'type' => MENU_NORMAL_ITEM,
+    'file' => 'xboxgames-newgame-form.inc',
+  );
+
+  $items['xbox/games'] = array(
+    'title' => 'Games We Want',
+    'description' => 'A list of all games to be voted on.',
+    'page callback' => 'xboxgames_page_view',
+    'access arguments' => array('access xboxgames content'),
+    'type' => MENU_CALLBACK,
+  );
+  return $items;
+}
+
+/**
+ * Implements hook_block_info().
+ * @return array()
+ *    Array to define a blocks settings such as name, etc...
+ *
+ * See
+*/
+function xboxgames_block_info() {
+  $blocks['xboxgames_block'] = array(
+    'info' => t('Games We Own'), //The name that will appear in the block list. (Required)
+    'cache' => DRUPAL_CACHE_PER_ROLE, //Default (Optional)
+  );
+  return $blocks;
+}
+
+/**
+* Implements hook_block_view().
+*
+* @param delta
+*   The machine name of the block to indentify it uniquely.
+* @return array()
+*
+* Prepares the contents of the block.
+*/
+function xboxgames_block_view($delta = '') {
+  $xbox = new Xboxgames();
+  $api_key = variable_get('xboxgames_api_key');
+
+  switch($delta){
+    case 'xboxgames_block'://name from hook_block_info
+      $block['subject'] = t('Games We Own');
+      if(user_access('access content')){
+
+         // wsclient module
+        $service = wsclient_service_load('xbox_voting');
+        $result = $service->getGames($api_key);
+
+        //sort by Title, asc
+        $result = $xbox->sortTitle($result);
+
+        $items = array();
+
+        foreach ($result as $game){
+              //only display games owned
+             if($xbox->isGotIt($game) ) {
+                  $items[] = array(
+                     'data' => $game->title,
+                  );
+             }
+        }//foreach
+
+        if (empty($items)) { //No nodes.
+          $block['content'] = t('We don\'t own any games.');
+        }
+        else {
+          //Pass data through theme function.
+          $block['content'] = theme('item_list', array(
+            'items' => $items));
+        }
+      }
+  }
+
+  return $block;
+}
+
+/**
+ *Implements hook_forms
+ * @param array $form_id
+ * @param array $args
+ * @return array
+ */
+function xboxgames_forms($form_id, $arg) {
+
+    if(!empty($arg)) {
+        if($arg[1] == 'vote') {
+            $forms[$form_id] = array(
+                'callback' => 'xboxgames_vote_form',
+                'callback arguments' => $arg,
+            );
+        }
+
+        if($arg[1] == 'gotit') {
+            $forms[$form_id] = array(
+                'callback' => 'xboxgames_setgotit_form',
+                'callback arguments' => $arg,
+              );
+        }
+
+        return $forms;
+
+}
+
+}
+
+/**
+ * Implements hook_form()
+ * @param form
+ * @param form_state
+ *
+ */
+function xboxgames_vote_form($form, &$form_state, $arg) {
+
+    $form['xboxgames_vote_id'] = array(
+    '#type' => 'hidden',
+    '#value' => $arg,
+  );
+
+  $form['submit']['vote'] = array('#type' => 'submit', '#value' => t('Vote'));
+
+  return $form;
+}
+
+/**
+ *
+ * Submit form to vote for a game
+ * @param $form_id
+ * @param $form_state
+ */
+function xboxgames_vote_form_submit($form, &$form_state) {
+    global $user;
+    $xbox = new Xboxgames();
+
+     if($form_state['clicked_button']['#value'] == 'Vote') {
+
+          if(!$xbox->hasVoted($user->uid, REQUEST_TIME)) {
+              // wsclient module
+              $service = wsclient_service_load('xbox_voting');
+              $result = $service->addVote(variable_get('xboxgames_api_key'),$form['xboxgames_vote_id']['#value']);
+
+              if($result) {
+                  $insert_result = $xbox->addVote($user->uid, REQUEST_TIME);
+                  drupal_set_message(t('Vote was added to this game title.'), 'status');
+              } else {
+                  drupal_set_message(t('There was a problem voting for this game title.'), 'error');
+              }
+          } else {
+                drupal_set_message(t('You already voted.'), 'warning');
+          }
+    }
+}
+
+/**
+ * Implements hook_form()
+ * @param form
+ * @param form_state
+ *
+ */
+function xboxgames_setgotit_form($form, &$form_state, $arg) {
+
+    $form['xboxgames_setgotit_id'] = array(
+    '#type' => 'hidden',
+    '#value' => $arg,
+  );
+
+  $form['submit']['gotit'] = array('#type' => 'submit', '#value' => t('Get Game'));
+
+  return $form;
+}
+
+/**
+ *
+ * Submit form to get game
+ * @param $form_id
+ * @param $form_state
+ */
+function xboxgames_setgotit_form_submit($form, &$form_state) {
+
+     if($form_state['clicked_button']['#value'] == 'Get Game') {
+        // wsclient module
+      $service = wsclient_service_load('xbox_voting');
+      $result = $service->setGotit(variable_get('xboxgames_api_key'),$form['xboxgames_setgotit_id']['#value']);
+
+      if($result) {
+          drupal_set_message(t('We are getting the game.'), 'status');
+      } else {
+          drupal_set_message(t('There was a problem changing status to gotit.'), 'error');
+      }
+    }
+}
+
+/**
+ *
+ * Generate page content
+ * return game titles in a table
+ */
+function xboxgames_page_view() {
+    global $user;
+    $xbox = new Xboxgames();
+
+    // wsclient module
+    $service = wsclient_service_load('xbox_voting');
+    if($service) {
+        $result = $service->getGames(variable_get('xboxgames_api_key'));
+        //remove game titles from the array with status = gotit
+        $result = $xbox->removeGame($result);
+
+
+        if(!$result) { //No game titles returned
+            drupal_set_message(t('No games returned.'), 'warning');
+            $header = array(t('Title'));//One col when there are no results
+            $itemlist = array(t('No games available to vote for.'));
+            $rows[] = $itemlist;
+        } else {
+
+               //sort by votes, desc
+              $result = $xbox->sortVotes($result);
+
+              $i = 0;//need to create unique form ids
+              foreach($result as $game) {
+                  $gotitbutton = NULL;
+                  $votebutton = NULL;
+
+                  $header = array(t('Title'), t('# Votes'));//always show 2 table headers
+                  $itemlist = array($game->title, $game->votes);
+
+                  //if user is allowed to vote
+                   if(!$xbox->hasVoted($user->uid, REQUEST_TIME)) {
+                        $votebutton = drupal_render(drupal_get_form('xboxgames_vote_form_' . $i, $game->id, 'vote'));
+                        array_push($header,t('Vote'));//add header col
+                        array_push($itemlist, $votebutton);//add button to col
+                   }
+                   //if user has permission to get a game, set status = gotit
+                   if(user_access('mark xboxgames purchased')) {
+                        $gotitbutton = drupal_render(drupal_get_form('xboxgames_setgotit_form_' . $i, $game->id, 'gotit'));
+                        array_push($header, t('Get Game'));//add header col
+                        array_push($itemlist, $gotitbutton);//add button to col
+                   }
+
+                  $i++;//iterate to create unique form ids
+
+                  $rows[] = $itemlist;//create table rows
+              }
+
+        }//else
+    } else { //if service
+        drupal_set_message(t('No games returned.'), 'warning');
+        $header = array(t('Title'));//One col when there are no results
+        $itemlist = array(t('No games available to vote for.'));
+        $rows[] = $itemlist;
+    }
+
+    //setup table
+    $table=array(
+         'header' =>  $header,
+         'rows'  =>  $rows,
+         'attributes' => array(),
+         'caption' => NULL,
+         'colgroups' => NULL,
+         'sticky' => 1,
+         'empty' => NULL,
+     );
+
+  //return a link to the add new game page along with the game list table
+  return l('Add new game', 'xbox/games/add', array('attributes' => array('class' => 'new-game'))) . theme_table($table);
+
+}
