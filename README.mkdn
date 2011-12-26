@@ -4,6 +4,7 @@ Only users that are logged in with the proper permissions can view and vote for 
 mark them as owned.
 
 ###Dependencies###
+Drupal 7
 [Web service client] (http://drupal.org/project/wsclient)
 wsclient, wsclient_soap, nerdery_soap
 
