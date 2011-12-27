@@ -268,6 +268,11 @@ function xboxgames_page_view() {
     global $user;
     $xbox = new Xboxgames();
 
+    if(!variable_get('xboxgames_api_key')) {
+        drupal_set_message('No API key has been set', 'error');
+        return t('Set the ') . l('API Key.', 'admin/config/content/xboxgames');
+    }
+
     // wsclient module
     $service = wsclient_service_load('xbox_voting');
     if($service) {
