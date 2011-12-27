@@ -12,8 +12,11 @@ mark them as owned.
 1. enable wsclient, wsclient_soap and wsclient_ui
 
 ###Using Xboxgames module###
-1. Go to /admin/config/content/xboxgames
-2. Enter API key
+1. enable xboxgames, nerdery_soap
+2. Go to /admin/config/content/xboxgames
+3. Enter API key
+4. Set xboxgames permissions for the roles you want to be able to view and vote for games
+5. Set the region for the Games We Own block
 
 Admin page at /admin/config/content/xboxgames to set API key and clear games.
 
